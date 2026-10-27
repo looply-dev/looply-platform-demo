@@ -14,12 +14,15 @@ A tiny library lending service (Python 3.11+, no third-party dependencies). It e
 | `GET` | `/members/{id}/loans` | All loans of a member |
 | `POST` | `/loans` | Borrow a book. Body: `{"member_id": 1, "book_id": 1}` |
 | `POST` | `/loans/{id}/return` | Return a book. Returns the late fee in cents |
+| `POST` | `/loans/{id}/renew` | Renew a loan. The new loan period starts today |
+| `GET` | `/reports/overdue?member=<name>` | Report of overdue loans. `member` is optional |
 
 Business rules (`src/lending/domain/rules.py`):
 
 - The loan period is 14 days.
 - Active loan limit: 3 books for standard members, 5 books for premium members.
 - The late fee is 50 cents per day, capped at 2000 cents.
+- A loan can be renewed at most 2 times.
 
 ## Run locally
 
