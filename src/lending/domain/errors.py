@@ -19,3 +19,7 @@ class NoCopiesAvailable(LendingError):
 
 class LoanAlreadyReturned(LendingError):
     """The loan was already returned and cannot change."""
+
+
+class RenewLimitReached(LendingError):
+    """The loan has no renewals left."""

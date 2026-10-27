@@ -13,6 +13,7 @@ LOAN_PERIOD_DAYS = 14
 MAX_ACTIVE_LOANS = {"standard": 3, "premium": 5}
 DAILY_LATE_FEE_CENTS = 50
 MAX_LATE_FEE_CENTS = 2000
+MAX_RENEWALS = 2
 
 
 def due_date_for(borrowed_on: date) -> date:
@@ -30,3 +31,8 @@ def late_fee_cents(due_on: date, returned_on: date) -> int:
     """Return the late fee in cents: a daily fee with a cap. Early or on-time returns cost 0."""
     days_late = max(0, (returned_on - due_on).days)
     return min(days_late * DAILY_LATE_FEE_CENTS, MAX_LATE_FEE_CENTS)
+
+
+def can_renew(renew_count: int) -> bool:
+    """Return True if the loan can be renewed. A loan can be renewed at most MAX_RENEWALS times."""
+    return renew_count <= MAX_RENEWALS

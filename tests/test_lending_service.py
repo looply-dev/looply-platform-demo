@@ -58,5 +58,23 @@ class ReturnTest(unittest.TestCase):
             self.service.return_book(self.loan.id)
 
 
+class RenewTest(unittest.TestCase):
+    def setUp(self):
+        self.service, self.repo, self.clock = make_env()
+        member = self.repo.add_member("Alice")
+        book = self.repo.add_book("SICP", "Abelson", 1)
+        self.loan = self.service.borrow(member.id, book.id)
+
+    def test_renew_extends_due_date(self):
+        renewed = self.service.renew(self.loan.id)
+        self.assertGreater(renewed.due_on, self.loan.due_on)
+        self.assertEqual(renewed.renew_count, 1)
+
+    def test_cannot_renew_returned_loan(self):
+        self.service.return_book(self.loan.id)
+        with self.assertRaises(LoanAlreadyReturned):
+            self.service.renew(self.loan.id)
+
+
 if __name__ == "__main__":
     unittest.main()
