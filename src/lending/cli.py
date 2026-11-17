@@ -17,22 +17,28 @@ def _seed(db_path: str) -> None:
     print(f"seeded {db_path}")
 
 
-def main() -> None:
-    """Parse the subcommand and run it."""
+def build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for all subcommands."""
     parser = argparse.ArgumentParser(prog="lending")
     parser.add_argument("--db", default="lending.db", help="path to the SQLite database file")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("seed", help="write sample data")
     serve = sub.add_parser("serve", help="start the HTTP API")
+    serve.add_argument("--host", default="0.0.0.0", help="interface to listen on")
     serve.add_argument("--port", type=int, default=8000)
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    """Parse the subcommand and run it."""
+    args = build_parser().parse_args()
 
     if args.command == "seed":
         _seed(args.db)
     else:
         service, _ = build_service(args.db)
-        server = create_server(service, port=args.port)
-        print(f"listening on http://127.0.0.1:{args.port}")
+        server = create_server(service, host=args.host, port=args.port)
+        print(f"listening on http://{args.host}:{args.port}")
         server.serve_forever()
 
 
