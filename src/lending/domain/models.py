@@ -34,6 +34,7 @@ class Loan:
     due_on: date
     returned_on: date | None = None
     late_fee_cents: int = 0
+    renew_count: int = 0
 
     @property
     def is_active(self) -> bool:

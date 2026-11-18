@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS loans (
     borrowed_on TEXT NOT NULL,
     due_on TEXT NOT NULL,
     returned_on TEXT,
-    late_fee_cents INTEGER NOT NULL DEFAULT 0
+    late_fee_cents INTEGER NOT NULL DEFAULT 0,
+    renew_count INTEGER NOT NULL DEFAULT 0
 );
 """
 

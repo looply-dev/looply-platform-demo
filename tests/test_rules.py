@@ -37,5 +37,11 @@ class LateFeeTest(unittest.TestCase):
         self.assertEqual(rules.late_fee_cents(date(2026, 1, 19), date(2026, 6, 1)), rules.MAX_LATE_FEE_CENTS)
 
 
+class CanRenewTest(unittest.TestCase):
+    def test_fresh_loan_can_be_renewed(self):
+        self.assertTrue(rules.can_renew(0))
+        self.assertTrue(rules.can_renew(1))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -6,10 +6,14 @@ It must not import the storage layer.
 
 import json
 import re
+import sqlite3
 from dataclasses import asdict
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
+from urllib.parse import parse_qsl, urlsplit
+
+from lending.api.reports import overdue_report
 
 from lending.domain.errors import LendingError, NotFound
 from lending.services.lending_service import LendingService
@@ -20,6 +24,8 @@ ROUTES: list[tuple[str, re.Pattern[str], str]] = [
     ("GET", re.compile(r"^/members/(?P<member_id>\d+)/loans$"), "member_loans"),
     ("POST", re.compile(r"^/loans$"), "borrow"),
     ("POST", re.compile(r"^/loans/(?P<loan_id>\d+)/return$"), "return_book"),
+    ("POST", re.compile(r"^/loans/(?P<loan_id>\d+)/renew$"), "renew"),
+    ("GET", re.compile(r"^/reports/overdue$"), "overdue"),
 ]
 
 
@@ -33,8 +39,9 @@ def _json_default(value: Any) -> Any:
 class Endpoints:
     """One handler per route. Each returns (status, body)."""
 
-    def __init__(self, service: LendingService):
+    def __init__(self, service: LendingService, report_conn: sqlite3.Connection | None = None):
         self._service = service
+        self._report_conn = report_conn
 
     def health(self, body: dict) -> tuple[int, Any]:
         return 200, {"status": "ok"}
@@ -54,10 +61,20 @@ class Endpoints:
         receipt = self._service.return_book(int(loan_id))
         return 200, {"loan": asdict(receipt.loan), "late_fee_cents": receipt.late_fee_cents}
 
+    def renew(self, body: dict, loan_id: str) -> tuple[int, Any]:
+        return 200, asdict(self._service.renew(int(loan_id)))
 
-def make_handler(service: LendingService) -> type[BaseHTTPRequestHandler]:
+    def overdue(self, body: dict) -> tuple[int, Any]:
+        if self._report_conn is None:
+            return 503, {"error": "reports are not configured"}
+        return 200, overdue_report(self._report_conn, date.today(), body.get("member"))
+
+
+def make_handler(
+    service: LendingService, report_conn: sqlite3.Connection | None = None
+) -> type[BaseHTTPRequestHandler]:
     """Build a request handler class bound to the service (http.server takes a class, not an instance)."""
-    endpoints = Endpoints(service)
+    endpoints = Endpoints(service, report_conn)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -72,13 +89,16 @@ def make_handler(service: LendingService) -> type[BaseHTTPRequestHandler]:
 
         def _dispatch(self, method: str) -> None:
             """Match a route and map domain errors to HTTP status codes."""
-            path = self.path.split("?", 1)[0]
+            url = urlsplit(self.path)
+            path = url.path
             for route_method, pattern, name in ROUTES:
                 match = pattern.match(path)
                 if route_method == method and match:
                     fn: Callable[..., tuple[int, Any]] = getattr(endpoints, name)
                     try:
-                        status, payload = fn(self._read_json(), **match.groupdict())
+                        # GET requests have no body, so pass the query string as params
+                        params = self._read_json() if method == "POST" else dict(parse_qsl(url.query))
+                        status, payload = fn(params, **match.groupdict())
                     except NotFound as exc:
                         status, payload = 404, {"error": str(exc)}
                     except LendingError as exc:
@@ -110,6 +130,11 @@ def make_handler(service: LendingService) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def create_server(service: LendingService, host: str = "127.0.0.1", port: int = 8000) -> ThreadingHTTPServer:
+def create_server(
+    service: LendingService,
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    report_conn: sqlite3.Connection | None = None,
+) -> ThreadingHTTPServer:
     """Create (but do not start) the HTTP server. port=0 lets the OS pick a free port."""
-    return ThreadingHTTPServer((host, port), make_handler(service))
+    return ThreadingHTTPServer((host, port), make_handler(service, report_conn))

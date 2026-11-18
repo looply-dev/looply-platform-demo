@@ -15,7 +15,7 @@ class ApiTest(unittest.TestCase):
         self.service, self.repo, self.clock = make_env()
         self.member = self.repo.add_member("Alice")
         self.book = self.repo.add_book("SICP", "Abelson", 1)
-        self.server = create_server(self.service, port=0)
+        self.server = create_server(self.service, port=0, report_conn=self.repo.connection)
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
@@ -50,6 +50,19 @@ class ApiTest(unittest.TestCase):
         self.request("POST", "/loans", {"member_id": self.member.id, "book_id": self.book.id})
         other = self.repo.add_member("Bob")
         self.assertEqual(self.request("POST", "/loans", {"member_id": other.id, "book_id": self.book.id})[0], 409)
+
+    def test_renew(self):
+        _, loan = self.request("POST", "/loans", {"member_id": self.member.id, "book_id": self.book.id})
+        status, renewed = self.request("POST", f"/loans/{loan['id']}/renew")
+        self.assertEqual(status, 200)
+        self.assertEqual(renewed["renew_count"], 1)
+
+    def test_overdue_report(self):
+        self.request("POST", "/loans", {"member_id": self.member.id, "book_id": self.book.id})
+        status, report = self.request("GET", "/reports/overdue?member=Alice")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(report), 1)
+        self.assertEqual(report[0]["member"], "Alice")
 
 
 if __name__ == "__main__":

@@ -30,8 +30,8 @@ def main() -> None:
     if args.command == "seed":
         _seed(args.db)
     else:
-        service, _ = build_service(args.db)
-        server = create_server(service, port=args.port)
+        service, repo = build_service(args.db)
+        server = create_server(service, port=args.port, report_conn=repo.connection)
         print(f"listening on http://127.0.0.1:{args.port}")
         server.serve_forever()
 

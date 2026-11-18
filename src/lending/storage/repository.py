@@ -16,6 +16,7 @@ def _to_loan(row: sqlite3.Row) -> Loan:
         due_on=date.fromisoformat(row["due_on"]),
         returned_on=date.fromisoformat(row["returned_on"]) if row["returned_on"] else None,
         late_fee_cents=row["late_fee_cents"],
+        renew_count=row["renew_count"],
     )
 
 
@@ -24,6 +25,11 @@ class LibraryRepository:
 
     def __init__(self, conn: sqlite3.Connection):
         self._conn = conn
+
+    @property
+    def connection(self) -> sqlite3.Connection:
+        """The underlying database connection, shared with read-only queries such as reports."""
+        return self._conn
 
     # ---- books / members ----
 
@@ -89,6 +95,17 @@ class LibraryRepository:
         self._conn.execute(
             "UPDATE loans SET returned_on = ?, late_fee_cents = ? WHERE id = ?",
             (returned_on.isoformat(), late_fee_cents, loan_id),
+        )
+        self._conn.commit()
+        loan = self.get_loan(loan_id)
+        assert loan is not None
+        return loan
+
+    def renew_loan(self, loan_id: int, new_due_on: date) -> Loan:
+        """Set a new due date and increment the renewal count."""
+        self._conn.execute(
+            "UPDATE loans SET due_on = ?, renew_count = renew_count + 1 WHERE id = ?",
+            (new_due_on.isoformat(), loan_id),
         )
         self._conn.commit()
         loan = self.get_loan(loan_id)
