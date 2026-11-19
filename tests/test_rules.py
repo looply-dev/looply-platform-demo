@@ -33,6 +33,9 @@ class LateFeeTest(unittest.TestCase):
     def test_fee_per_day(self):
         self.assertEqual(rules.late_fee_cents(date(2026, 1, 19), date(2026, 1, 22)), 150)
 
+    def test_no_fee_within_grace_period(self):
+        self.assertEqual(rules.late_fee_cents(date(2026, 1, 19), date(2026, 1, 21)), 0)
+
     def test_fee_is_capped(self):
         self.assertEqual(rules.late_fee_cents(date(2026, 1, 19), date(2026, 6, 1)), rules.MAX_LATE_FEE_CENTS)
 

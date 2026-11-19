@@ -5,6 +5,7 @@ the clock or touch the database, so they are easy to unit test and to check in r
 All money is in integer cents. Never use float for money.
 """
 
+import math
 from datetime import date, timedelta
 
 from lending.domain.models import Member
@@ -13,6 +14,7 @@ LOAN_PERIOD_DAYS = 14
 MAX_ACTIVE_LOANS = {"standard": 3, "premium": 5}
 DAILY_LATE_FEE_CENTS = 50
 MAX_LATE_FEE_CENTS = 2000
+GRACE_PERIOD_DAYS = 2
 
 
 def due_date_for(borrowed_on: date) -> date:
@@ -27,6 +29,9 @@ def can_borrow(member: Member, active_loan_count: int) -> bool:
 
 
 def late_fee_cents(due_on: date, returned_on: date) -> int:
-    """Return the late fee in cents: a daily fee with a cap. Early or on-time returns cost 0."""
-    days_late = max(0, (returned_on - due_on).days)
+    """Return the late fee in cents: a daily fee with a cap.
+
+    Returns within GRACE_PERIOD_DAYS after the due date cost 0.
+    """
+    days_late = max(0, (returned_on - due_on).days - GRACE_PERIOD_DAYS)
     return min(days_late * DAILY_LATE_FEE_CENTS, MAX_LATE_FEE_CENTS)
